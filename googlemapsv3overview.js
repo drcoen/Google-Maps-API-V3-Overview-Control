@@ -147,7 +147,8 @@ google.maps.Map.prototype.Overview = function (options)
     navigationControl: false,
     scaleControl: false,
     streetViewControl: false,
-    scrollwheel: false
+    scrollwheel: false,
+    disableDoubleClickZoom: true
   };
 
   var map = this;
@@ -275,6 +276,12 @@ google.maps.Map.prototype.Overview = function (options)
       //if the Overview map drags, change the main map
       google.maps.event.addListener(sub_map, 'drag', function () {
 	map.setCenter(this.getCenter());
+      });
+
+      //disable double click on the Overview map
+      google.maps.event.addListener(sub_map, 'dblclick', function () {
+	this.setZoom(map.getZoom() - s.zoom_difference);
+	this.setCenter(map.getCenter());
       });
     }
   }
