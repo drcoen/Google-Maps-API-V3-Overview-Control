@@ -118,7 +118,7 @@ google.maps.Map.prototype.Overview = function (options)
 {
   // default settings
   var s = {
-    zoom_difference: 3,
+    zoom_difference: 4,
     border_color: '979797',
     background_color: 'e8ecf8',
     rectangle: true,
@@ -148,7 +148,8 @@ google.maps.Map.prototype.Overview = function (options)
     scaleControl: false,
     streetViewControl: false,
     scrollwheel: false,
-    disableDoubleClickZoom: true
+    disableDoubleClickZoom: true,
+    draggable: false
   };
 
   var map = this;
@@ -175,8 +176,9 @@ google.maps.Map.prototype.Overview = function (options)
     top_px = client_height - (s.box_height + 9 + parseInt($('#'+map_div.id).css('border-bottom-width')));
     left = client_width - (s.box_width + 9) + parseInt($('#'+map_div.id).css('border-left-width'));
   }
-      
+
   function OverviewMap(map) {
+    this.parent_map = map;
     this.setMap(map);
   }
 
@@ -187,6 +189,7 @@ google.maps.Map.prototype.Overview = function (options)
   OverviewMap.prototype.draw = function()
   {
     var div = this.div_;
+    var me = this;
     if (!div)
     {
       //create main outer div and add to map
@@ -200,6 +203,7 @@ google.maps.Map.prototype.Overview = function (options)
       $(sub_div).attr('id', 'sub_'+map_div.id);
       div.appendChild(sub_div);
       var sub_map = new google.maps.Map(sub_div, sub_map_options);
+      me.sub_map = sub_map;
       //create the arrow controller
       var arrow_div = document.createElement('DIV');
       $(arrow_div).addClass('down');
@@ -230,16 +234,55 @@ google.maps.Map.prototype.Overview = function (options)
 	// draw the rectangle, if we want one
 	if (s.rectangle == true)
 	{
-	  rectangle = new google.maps.Rectangle({
+	  var rectangle = new google.maps.Rectangle({
 	    bounds: map.getBounds(),
 	    fillColor: '#'+s.rectangle_color,
 	    fillOpacity: s.rectangle_opacity,
 	    strokeColor: '#'+s.rectangle_color,
 	    strokeWeight: s.rectangle_border_width,
 	    strokeOpacity: 1
+
 	  });
+          sub_map.rectangle = rectangle;
 	  rectangle.setMap(sub_map);
+          function rectStartMove(evt){
+            rectangle.mover = google.maps.event.addListener(rectangle, 'mousemove',rectMove);
+            rectangle.startPos =  evt.latLng;
+            rectangle.startBounds =  rectangle.getBounds();
+            console.log('start',evt);
+          }
+          function rectStopMove(evt){
+            google.maps.event.removeListener(rectangle.mover);
+            var center = rectangle.getBounds().getCenter();
+            me.sub_map.setCenter(center);
+            me.parent_map.setCenter(center);
+            console.log('stop',evt);
+          }
+          var LatLng = google.maps.LatLng, LatLngBounds = google.maps.LatLngBounds;
+          function rectMove(evt){
+            // never move the rect if the mouse is not in it
+            if(new Date() - rectangle.tick < 50) return false;
+            rectangle.tick = new Date();
+            if(!rectangle.getBounds().contains(evt.latLng)){
+              rectStopMove();
+              return ;
+            }
+
+            var dlat = (evt.latLng.lat() - rectangle.startPos.lat());
+            var dlng = (evt.latLng.lng() - rectangle.startPos.lng());
+            var bounds = rectangle.getBounds();
+            var ne= bounds.getNorthEast();
+            var sw= bounds.getSouthWest();
+            var nb = new LatLngBounds(new LatLng(sw.lat()+dlat,sw.lng()+dlng),
+                                      new LatLng(ne.lat()+dlat,ne.lng()+dlng));
+            console.log('move',evt, dlat, dlng, bounds);
+            rectangle.startPos = evt.latLng;
+            rectangle.setBounds(nb);
+          }
+          google.maps.event.addListener(rectangle, 'mousedown',rectStartMove);
+          google.maps.event.addListener(rectangle, 'mouseup',rectStopMove);
 	  //whenever the main map changes, change the rectangle to reflect the change
+/*
 	  google.maps.event.addListener(map, 'bounds_changed', function () {
 	    if (map.getZoom() > s.zoom_difference) //if not too far zoomed out
 	    {
@@ -254,7 +297,9 @@ google.maps.Map.prototype.Overview = function (options)
 	      rectangle.setMap(null);
 	    }
 	  });
+*/
 	}
+
 	//sneaky trick to remove the Google logo in the Overview map
 	$('#sub_'+map_div.id+' > div > div > a > div > img').remove();
       });
@@ -267,12 +312,12 @@ google.maps.Map.prototype.Overview = function (options)
 	  sub_map.setZoom(this.zoom - s.zoom_difference);
 	}
       });
-      
+
       //if the main map drags, change the Overview map
       google.maps.event.addListener(map, 'drag', function () {
 	sub_map.setCenter(this.getCenter());
       });
-      
+
       //if the Overview map drags, change the main map
       google.maps.event.addListener(sub_map, 'drag', function () {
 	map.setCenter(this.getCenter());
@@ -288,5 +333,6 @@ google.maps.Map.prototype.Overview = function (options)
 
   //create the map
   var sub = new OverviewMap(map);
+  this.sub_map = sub;
 }
 
