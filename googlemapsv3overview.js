@@ -216,14 +216,14 @@ google.maps.Map.prototype.Overview = function (options)
 	// if it's pointing down
 	if ($(this).hasClass('down'))
 	{
-	  $(this).children().first().attr('src', 'up.png'); //swap the image
+	  $(this).children().first().attr('src', s.up_img); //swap the image
 	  $(this).removeClass('down'); //change the state
 	  $(this).addClass('up');
 	  $(div).hide(); //hide the map
 	}
 	else //it's pointing up
 	{
-	  $(this).children().first().attr('src', 'down.png'); //swap the image
+	  $(this).children().first().attr('src', s.down_img); //swap the image
 	  $(this).removeClass('up'); //change the state
 	  $(this).addClass('down');
 	  $(div).show(); //show the map
